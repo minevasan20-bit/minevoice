@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Voice Recorder Pro</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#00bbf9" />
+<style>
+  :root {
+    --bg-1: #1e1e2f; --bg-2: #2c2c54; --bg-3: #16162a;
+    --fg: #ffffff; --fg-dim: rgba(255,255,255,0.7);
+    --accent: #00f5d4; --accent-2: #00bbf9;
+    --danger: #ff4d6d; --warn: #ffb703; --success: #00f5a0;
+    --card: rgba(255,255,255,0.07); --border: rgba(255,255,255,0.1);
+  }
+  [data-theme="purple"] { --bg-1: #1a0033; --bg-2: #3d0066; --bg-3: #12002b; --accent: #b16ceb; --accent-2: #ff6ec7; }
+  [data-theme="green"] { --bg-1: #0a1f1a; --bg-2: #143d33; --bg-3: #071510; --accent: #00f5a0; --accent-2: #00ffb3; }
+  [data-theme="light"] { --bg-1: #f0f4ff; --bg-2: #e6ecff; --bg-3: #ffffff; --fg: #1a1a2e; --fg-dim: rgba(26,26,46,0.7); --card: rgba(0,0,0,0.05); --border: rgba(0,0,0,0.1); }
+  
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, sans-serif; background: linear-gradient(160deg, var(--bg-3), var(--bg-1) 40%, var(--bg-2)); color: var(--fg); min-height: 100vh; overflow-x: hidden; }
+  header { position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); background: rgba(0,0,0,0.25); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .title { font-size: 20px; font-weight: 800; background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header-actions { display: flex; gap: 8px; }
+  .icon-btn { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--fg); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .tabs { display: flex; gap: 4px; margin-top: 12px; background: var(--card); border-radius: 12px; padding: 4px; }
+  .tab { flex: 1; padding: 10px; border: none; background: transparent; color: var(--fg-dim); font-size: 13px; font-weight: 600; border-radius: 9px; cursor: pointer; }
+  .tab.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #000; }
+  main { padding: 20px 16px 100px; max-width: 700px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .recorder-box { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px 0; }
+  .rec-btn { width: 160px; height: 160px; border-radius: 50%; border: none; color: #fff; font-weight: 800; font-size: 17px; cursor: pointer; background: radial-gradient(circle at 30% 30%, #ff4d6d, #c9184a); box-shadow: 0 0 40px rgba(255,77,109,0.55); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+  .rec-btn:active { transform: scale(0.94); }
+  .rec-btn.recording { background: radial-gradient(circle at 30% 30%, #f72585, #7209b7); animation: pulse 1.4s infinite; }
+  .rec-btn.paused { background: radial-gradient(circle at 30% 30%, #ffb703, #fb8500); animation: none; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 40px rgba(247,37,133,0.6); } 50% { box-shadow: 0 0 70px rgba(247,37,133,1); } }
+  .timer-display { font-size: 40px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .status-text { font-size: 14px; color: var(--fg-dim); text-align: center; min-height: 20px; }
+  .visualizer { width: 100%; max-width: 500px; height: 90px; background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+  .visualizer canvas { width: 100%; height: 100%; display: block; }
+  .controls-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 500px; }
+  .ctrl-btn { flex: 1; min-width: 90px; padding: 12px; background: var(--card); border: 1px solid var(--border); color: var(--fg); border-radius: 12px; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .ctrl-btn:disabled { opacity: 0.4; }
+  .ctrl-btn.accent { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #000; border-color: transparent; }
+  .section-title { font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin: 20px 0 10px; }
+  .setting-item { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 8px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .setting-item .label-group { flex: 1; min-width: 140px; }
+  .setting-item .name { font-size: 14px; font-weight: 600; }
+  .setting-item .desc { font-size: 11px; color: var(--fg-dim); margin-top: 2px; }
+  .switch { position: relative; width: 48px; height: 26px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-toggle { position: absolute; inset: 0; cursor: pointer; background: var(--card); border-radius: 26px; transition: 0.3s; border: 1px solid var(--border); }
+  .slider-toggle:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: var(--fg-dim); border-radius: 50%; transition: 0.3s; }
+  .switch input:checked + .slider-toggle { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: transparent; }
+  .switch input:checked + .slider-toggle:before { transform: translateX(22px); background: #fff; }
+  .theme-picker { display: flex; gap: 8px; }
+  .theme-dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; }
+  .theme-dot.active { border-color: var(--accent); transform: scale(1.15); }
+  .theme-dot[data-t="default"] { background: linear-gradient(135deg,#1e1e2f,#2c2c54); }
+  .theme-dot[data-t="purple"]  { background: linear-gradient(135deg,#3d0066,#1a0033); }
+  .theme-dot[data-t="green"]   { background: linear-gradient(135deg,#00f5a0,#0a1f1a); }
+  .theme-dot[data-t="light"]   { background: linear-gradient(135deg,#f0f4ff,#e6ecff); }
+  .rec-list { display: flex; flex-direction: column; gap: 10px; }
+  .rec-card { background: var(--card); border-radius: 14px; padding: 14px; border: 1px solid var(--border); }
+  .rec-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rec-meta { font-size: 11px; color: var(--fg-dim); margin-top: 4px; }
+  .rec-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .mini-btn { flex: 1; padding: 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--fg); font-size: 11px; font-weight: 600; cursor: pointer; }
+  .mini-btn.danger { background: rgba(255,77,109,0.15); color: var(--danger); }
+  .empty { text-align: center; padding: 60px 20px; color: var(--fg-dim); }
+  .empty .ico { font-size: 60px; margin-bottom: 12px; opacity: 0.4; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; backdrop-filter: blur(6px); }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--bg-1); border-radius: 18px; padding: 22px; max-width: 420px; width: 100%; border: 1px solid var(--border); }
+  .modal h3 { margin-bottom: 14px; }
+  .modal input { width: 100%; background: var(--card); color: var(--fg); border: 1px solid var(--border); border-radius: 10px; padding: 11px; margin-bottom: 10px; font-size: 14px; outline: none; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-btns button { flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--fg); font-weight: 600; cursor: pointer; }
+  .modal-btns button.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #000; border-color: transparent; }
+  .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--accent); color: #000; padding: 12px 22px; border-radius: 30px; font-size: 13px; font-weight: 700; z-index: 999; transition: transform 0.35s cubic-bezier(.34,1.56,.64,1); max-width: 90%; text-align: center; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="title">🎙️ Voice Recorder Pro</div>
+    <div class="header-actions">
+      <button class="icon-btn" id="themeBtn">🎨</button>
+      <button class="icon-btn" id="helpBtn">❔</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-view="record">🎤 Record</button>
+    <button class="tab" data-view="library">📁 Library</button>
+    <button class="tab" data-view="settings">⚙️ Settings</button>
+  </div>
+</header>
+
+<main>
+  <!-- RECORD VIEW -->
+  <section id="view-record" class="view active">
+    <div class="recorder-box">
+      <button id="recBtn" class="rec-btn">
+        <span style="font-size:44px;">🎤</span>
+        <span id="recLabel">START</span>
+      </button>
+      <div id="timer" class="timer-display">00:00.0</div>
+      <div id="status" class="status-text">Tap to start recording</div>
+    </div>
+    <div class="visualizer"><canvas id="vizCanvas"></canvas></div>
+    <div class="controls-row" style="margin-top:14px;">
+      <button id="pauseBtn" class="ctrl-btn" disabled>⏸️ Pause</button>
+      <button id="bookmarkBtn" class="ctrl-btn" disabled>🔖 Bookmark</button>
+    </div>
+  </section>
+
+  <!-- LIBRARY VIEW -->
+  <section id="view-library" class="view">
+    <div id="recList" class="rec-list"></div>
+    <div id="emptyState" class="empty">
+      <div class="ico">🎙️</div>
+      <div>No recordings yet</div>
+      <div style="font-size:12px;margin-top:6px;">Tap "Record" to get started</div>
+    </div>
+  </section>
+
+  <!-- SETTINGS VIEW -->
+  <section id="view-settings" class="view">
+    <div class="section-title">🎨 Appearance</div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Theme</div></div>
+      <div class="theme-picker" id="themePicker">
+        <div class="theme-dot active" data-t="default"></div>
+        <div class="theme-dot" data-t="purple"></div>
+        <div class="theme-dot" data-t="green"></div>
+        <div class="theme-dot" data-t="light"></div>
+      </div>
+    </div>
+    <div class="section-title">🔇 Noise Reduction</div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Noise Suppression</div><div class="desc">Remove background hum</div></div>
+      <label class="switch"><input type="checkbox" id="setNoise" checked><span class="slider-toggle"></span></label>
+    </div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Echo Cancellation</div><div class="desc">Reduce room echo</div></div>
+      <label class="switch"><input type="checkbox" id="setEcho" checked><span class="slider-toggle"></span></label>
+    </div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Auto Gain Control</div><div class="desc">Keep volume consistent</div></div>
+      <label class="switch"><input type="checkbox" id="setAGC" checked><span class="slider-toggle"></span></label>
+    </div>
+    <div class="section-title">⚡ Behavior</div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Auto-Download</div><div class="desc">Save to device immediately</div></div>
+      <label class="switch"><input type="checkbox" id="setAutoSave" checked><span class="slider-toggle"></span></label>
+    </div>
+    <div class="setting-item">
+      <div class="label-group"><div class="name">Vibrate on Actions</div><div class="desc">Haptic feedback</div></div>
+      <label class="switch"><input type="checkbox" id="setVibrate" checked><span class="slider-toggle"></span></label>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalContent"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  
+  // ---- UTILITIES ----
+  const fmtTime = ms => { const s = Math.floor(ms/1000); const m = Math.floor(s/60); return `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}.${Math.floor((ms%1000)/100)}`; };
+  const fmtShort = ms => { const s = Math.floor(ms/1000), m = Math.floor(s/60); return `${m}:${String(s%60).padStart(2,'0')}`; };
+  const fmtSize = b => b < 1024 ? b+' B' : b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(2)+' MB';
+  
+  const toast = (msg, type='') => {
+    const t = $('toast'); t.textContent = msg; t.className = 'toast show ' + type;
+    clearTimeout(t._to); t._to = setTimeout(() => t.className = 'toast ' + type, 2600);
+  };
+  const vibrate = (ms=20) => { if (settings.vibrate && navigator.vibrate) navigator.vibrate(ms); };
+
+  // ---- SETTINGS ----
+  const SETTINGS_KEY = 'vr_pro_settings_v1';
+  const defaultSettings = { theme:'default', noise:true, echo:true, agc:true, autoSave:true, vibrate:true };
+  let settings = { ...defaultSettings };
+  try { const s = localStorage.getItem(SETTINGS_KEY); if (s) settings = { ...defaultSettings, ...JSON.parse(s) }; } catch(e) {}
+  const saveSettings = () => { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e){} };
+  const applyTheme = t => {
+    settings.theme = t; document.body.dataset.theme = t;
+    document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('active', d.dataset.t === t));
+    saveSettings();
+  };
+
+  // ---- STATE ----
+  let mediaRecorder = null, mediaStream = null, audioCtx = null, analyser = null;
+  let chunks = [], isRecording = false, isPaused = false;
+  let startTime = 0, pausedAt = 0, totalPaused = 0, timerInterval = null, animId = null;
+  let allRecordings = [];
+  let currentPlayingId = null;
+
+  // ---- CANVAS ----
+  const vizCanvas = $('vizCanvas'), vizCtx = vizCanvas.getContext('2d');
+  function resizeCanvas() { const dpr = window.devicePixelRatio || 1; vizCanvas.width = vizCanvas.offsetWidth * dpr; vizCanvas.height = vizCanvas.offsetHeight * dpr; vizCtx.setTransform(dpr,0,0,dpr,0,0); }
+  window.addEventListener('resize', resizeCanvas);
+
+  function startViz() {
+    if (!analyser) return;
+    const bufLen = analyser.frequencyBinCount, data = new Uint8Array(bufLen);
+    const draw = () => {
+      animId = requestAnimationFrame(draw);
+      analyser.getByteFrequencyData(data);
+      const w = vizCanvas.offsetWidth, h = vizCanvas.offsetHeight;
+      vizCtx.clearRect(0,0,w,h);
+      const barW = (w / bufLen) * 2.5; let x = 0;
+      const grad = vizCtx.createLinearGradient(0,h,0,0);
+      grad.addColorStop(0, '#00f5d4'); grad.addColorStop(1, '#00bbf9');
+      vizCtx.fillStyle = grad;
+      for (let i = 0; i < bufLen; i++) { const v = data[i]/255, bh = v*h*0.9; vizCtx.fillRect(x, h-bh, Math.max(1,barW-1), bh); x += barW; }
+    };
+    draw();
+  }
+  function stopViz() { cancelAnimationFrame(animId); vizCtx.clearRect(0,0,vizCanvas.offsetWidth,vizCanvas.offsetHeight); }
+
+  // ---- RECORDING ----
+  async function startRecording() {
+    try {
+      $('status').textContent = 'Requesting microphone...';
+      
+      // REMOVED sampleRate to prevent Android crashes
+      const constraints = {
+        audio: {
+          channelCount: 1,
+          echoCancellation: settings.echo,
+          noiseSuppression: settings.noise,
+          autoGainControl: settings.agc,
+          googEchoCancellation: settings.echo,
+          googAutoGainControl: settings.agc,
+          googNoiseSuppression: settings.noise,
+          googHighpassFilter: true
+        },
+        video: false
+      };
+      
+      mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+      // Simple AudioContext for visualizer
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioCtx.createMediaStreamSource(mediaStream);
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      startViz();
+
+      // Pick supported mime type
+      let mimeType = '';
+      const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+      for (const t of types) { if (window.MediaRecorder && MediaRecorder.isTypeSupported(t)) { mimeType = t; break; } }
+      
+      const options = mimeType ? { mimeType } : {};
+      mediaRecorder = new MediaRecorder(mediaStream, options);
+      chunks = [];
+
+      mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = () => onRecordingFinished();
+      mediaRecorder.start(500);
+
+      isRecording = true; isPaused = false; startTime = Date.now(); totalPaused = 0; pausedAt = 0;
+      $('recBtn').classList.add('recording'); $('recBtn').classList.remove('paused');
+      $('recLabel').textContent = 'STOP'; $('status').textContent = '🔴 Recording...';
+      $('pauseBtn').disabled = false; $('bookmarkBtn').disabled = false;
+
+      timerInterval = setInterval(updateTimer, 100);
+      vibrate(40);
+    } catch (err) {
+      console.error(err);
+      $('status').textContent = '❌ Error: ' + err.message;
+      toast('Mic error: ' + err.message, 'error');
+      cleanupAudio();
+    }
+  }
+
+  function updateTimer() {
+    let elapsed = isPaused ? (pausedAt - startTime - totalPaused) : (Date.now() - startTime - totalPaused);
+    $('timer').textContent = fmtTime(elapsed);
+  }
+
+  function pauseRecording() {
+    if (!mediaRecorder || !isRecording || isPaused) return;
+    try { mediaRecorder.pause(); } catch(e){}
+    isPaused = true; pausedAt = Date.now();
+    $('recBtn').classList.add('paused'); $('recLabel').textContent = 'RESUME';
+    $('status').textContent = '⏸️ Paused'; $('pauseBtn').textContent = '▶️ Resume';
+    vibrate(20);
+  }
+
+  function resumeRecording() {
+    if (!mediaRecorder || !isRecording || !isPaused) return;
+    try { mediaRecorder.resume(); } catch(e){}
+    totalPaused += Date.now() - pausedAt; isPaused = false;
+    $('recBtn').classList.remove('paused'); $('recLabel').textContent = 'STOP';
+    $('status').textContent = '🔴 Recording...'; $('pauseBtn').textContent = '⏸️ Pause';
+    vibrate(20);
+  }
+
+  function stopRecording() {
+    if (!mediaRecorder || !isRecording) return;
+    clearInterval(timerInterval);
+    try { mediaRecorder.stop(); } catch(e){}
+    mediaStream.getTracks().forEach(t => t.stop());
+    stopViz(); isRecording = false; isPaused = false;
+    $('recBtn').classList.remove('recording', 'paused'); $('recLabel').textContent = 'START';
+    $('pauseBtn').disabled = true; $('pauseBtn').textContent = '⏸️ Pause';
+    $('bookmarkBtn').disabled = true; $('status').textContent = '✅ Saving...';
+    vibrate(40);
+  }
+
+  function onRecordingFinished() {
+    const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    const duration = Date.now() - startTime - totalPaused;
+    const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+    const fileName = `VoiceRec_${stamp}.${ext}`;
+
+    const rec = { id: 'rec_' + Date.now(), name: fileName, date: Date.now(), duration, size: blob.size, ext, blob };
+    allRecordings.unshift(rec);
+    
+    if (settings.autoSave) downloadBlob(blob, fileName);
+    renderLibrary();
+    $('status').textContent = '✅ Saved to device';
+    cleanupAudio();
+    setTimeout(() => { $('status').textContent = 'Tap to start recording'; }, 2500);
+  }
+
+  function cleanupAudio() {
+    try { audioCtx?.close(); } catch(e){}
+    audioCtx = null; mediaStream = null; mediaRecorder = null;
+  }
+
+  function downloadBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name;
+  
